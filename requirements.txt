@@ -1,0 +1,9 @@
+numpy
+scikit-learn
+opencv-python
+tensorflow
+torch
+matplotlib
+scipy
+pytest
+robotics-toolbox-python
