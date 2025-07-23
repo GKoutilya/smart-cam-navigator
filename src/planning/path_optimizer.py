@@ -1,23 +1,52 @@
+import math
+
 class PathOptimizer:
     def __init__(self):
         pass
 
-    def smooth_path(self, path):
-        # Implement smoothing algorithm for the path
-        smoothed_path = []
-        # Example smoothing logic (to be replaced with actual implementation)
-        for i in range(len(path) - 1):
-            smoothed_path.append(path[i])
-            # Add intermediate points for smoothing
-            mid_point = ((path[i][0] + path[i + 1][0]) / 2, (path[i][1] + path[i + 1][1]) / 2)
-            smoothed_path.append(mid_point)
+    def smooth_path(self, path, weight=0.5):
+        """
+            Smooths the path using averaging technique.
+        """
+        if len(path) < 3:
+            return path
+
+        smoothed_path = [path[0]]
+        for i in range(1, len(path) - 1):
+            prev_point = path[i-1]
+            curr_point = path[i]
+            next_point = path[i+1]
+
+            smoothed_x = (
+                weight * prev_point[0] +
+                (1 - 2 * weight) * curr_point[0] +
+                weight * next_point[0]
+            )
+
+            smoothed_y = (
+                weight * prev_point[1] +
+                (1 - 2 * weight) * curr_point[1] +
+                weight * next_point[1]
+            )
+
+            smoothed_path.append((smoothed_x, smoothed_y))
+        
         smoothed_path.append(path[-1])
+
         return smoothed_path
 
-    def ensure_feasibility(self, path):
-        # Check if the path is feasible for execution
-        # Placeholder for feasibility check logic
-        return True  # Assume the path is feasible for now
+    def ensure_feasibility(self, path, max_step_size=5.0):
+        """
+            Ensures no two consecutive points are too far apart.
+        """
+        for i in range(len(path) - 1):
+            dx = path[i+1][0] - path[i][0]
+            dy = path[i+1][1] - path[i][1]
+            dist = math.hypot(dx, dy)
+            if dist > max_step_size:
+                return False
+
+        return True
 
     def optimize_path(self, path):
         if not self.ensure_feasibility(path):

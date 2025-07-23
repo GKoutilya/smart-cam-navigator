@@ -7,3 +7,4 @@ matplotlib
 scipy
 pytest
 robotics-toolbox-python
+ultralytics
