@@ -47,8 +47,14 @@ class PathOptimizer:
                 return False
 
         return True
+    
+    def path_length(self, path):
+        return sum(math.hypot(path[i+1][0], path[i+1][1]-path[i][1]) for i in range(len(path) - 1))
 
-    def optimize_path(self, path):
+    def optimize_path(self, path, smoothing_method="average"):
         if not self.ensure_feasibility(path):
             raise ValueError("Path is not feasible for execution.")
-        return self.smooth_path(path)
+        if smoothing_method == "average":
+            return self.smooth_path(path)
+        
+        return path

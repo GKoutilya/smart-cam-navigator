@@ -24,15 +24,21 @@ class CameraPathPlanner:
 
         return targets
 
-    def plan_path(self, start, goal, num_points=20):
+    def plan_path(self, start, goals, num_points=20):
         """
-            Plans a linear path from start to goal with intermediate points.
+            Plans a path from start through multiple goals.
         """
-        x_vals = np.linspace(start[0], goal[0], num_points)
-        y_vals = np.linspace(start[1], goal[1], num_points)
-        path = list(zip(x_vals, y_vals))
+        path = [start]
+        for goal in goals:
+            segment = self.plan_segment(path[-1], goal, num_points)
+            path.extend(segment[1:])
 
         return path
+    
+    def plan_segment(self, start, goal, num_points):
+        x_vals = np.linspace(start[0], goal[0], num_points)
+        y_vals = np.linspace(start[1], goal[1], num_points)
+        return list(zip(x_vals, y_vals))
 
     def optimize_path(self, path):
         """

@@ -5,7 +5,8 @@ import random
 from typing import Any, Dict
 
 class VisualSceneUnderstanding:
-    def __init__(self, detection_model, pose_model=None, scene_classifier=None):
+    def __init__(self, detection_model, camera, pose_model=None, scene_classifier=None):
+        self.camera = camera
         self.pose_model = pose_model
         if detection_model is None:
             self.detection_model = YOLO('yolov8n.pt')
@@ -20,8 +21,11 @@ class VisualSceneUnderstanding:
             "y": round(random.uniform(0, 10), 2),
             "theta": round(random.uniform(-3.14, 3.14), 2)
         }
+    
+    def capture_image(self):
+        return self.camera.capture_image()
 
-    def detect_people(self, image: Any) -> Dict[str, Any]:
+    def detect_people(self, image: Any, conf_threshold=0.5) -> Dict[str, Any]:
         # Convert image if it's a NumPy array (BGR) or assume it's a filepath
         if isinstance(image, str):
             image = cv2.imread(image)
@@ -31,7 +35,8 @@ class VisualSceneUnderstanding:
         people = []
         for box in results.boxes:
             cls_id = int(box.cls[0])
-            if self.detection_model.names[cls_id] == "person":
+            conf = float(box.conf[0])
+            if self.detection_model.names[cls_id] == "person" and conf >= conf_threshold:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 people.append({
                     "bbox": [int(x1), int(y1), int(x2), int(y2)],

@@ -1,5 +1,6 @@
 import cv2
 import unittest
+from unittest.mock import Mock
 import pillow_heif
 import numpy as np
 from PIL import Image
@@ -20,7 +21,7 @@ class TestVisualSceneUnderstanding(unittest.TestCase):
 
     def setUp(self):
         model = YOLO('yolov8n.pt')
-        self.understanding = VisualSceneUnderstanding(detection_model=model)
+        self.understanding = VisualSceneUnderstanding(detection_model=model, camera=Mock())
 
     def test_pose_estimation(self):
         pose = self.understanding.estimate_pose(image)

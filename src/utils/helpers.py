@@ -30,3 +30,32 @@ def visualize_path(path):
     plt.ylabel('Y Coordinate')
     plt.grid()
     plt.show()
+
+def visualize_path_from_csv(csv_path, save_plot=True):
+    """Load path from CSV and visualize it using matplotlib."""
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import os
+
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"CSV path {csv_path} not found.")
+
+    df = pd.read_csv(csv_path)
+    if 'x' not in df.columns or 'y' not in df.columns:
+        raise ValueError("CSV must contain 'x' and 'y' columns.")
+
+    path = list(zip(df['x'], df['y']))
+    x, y = zip(*path)
+
+    plt.plot(x, y, marker='o')
+    plt.title('Robot Run Path from CSV')
+    plt.xlabel('X Coordinate')
+    plt.ylabel('Y Coordinate')
+    plt.grid(True)
+
+    if save_plot:
+        plot_name = os.path.splitext(csv_path)[0] + "_path_plot.png"
+        plt.savefig(plot_name)
+        print(f"Plot saved to: {plot_name}")
+    else:
+        plt.show()
