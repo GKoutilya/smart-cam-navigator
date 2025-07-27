@@ -14,19 +14,16 @@ class VisualSceneUnderstanding:
             self.detection_model = detection_model
         self.scene_classifier = scene_classifier
 
-    def estimate_pose(self, image: Any) -> Dict[str, float]:
-        # Dummy pose vector
-        return {
-            "x": round(random.uniform(0, 10), 2),
-            "y": round(random.uniform(0, 10), 2),
-            "theta": round(random.uniform(-3.14, 3.14), 2)
-        }
+    def estimate_pose(self) -> Dict[str, float]:
+        return {"x": 150, "y": 200, "theta": 0.5}
     
     def capture_image(self):
-        return self.camera.capture_image()
+        return self.camera.capture()
 
-    def detect_people(self, image: Any, conf_threshold=0.5) -> Dict[str, Any]:
+    def detect_people(self, conf_threshold=0.5) -> Dict[str, Any]:
         # Convert image if it's a NumPy array (BGR) or assume it's a filepath
+        image = self.camera.capture()
+
         if isinstance(image, str):
             image = cv2.imread(image)
 
@@ -48,14 +45,14 @@ class VisualSceneUnderstanding:
             "num_people": len(people)
         }
 
-    def classify_scene(self, image: Any) -> str:
+    def classify_scene(self) -> str:
         # Returns a simple tag of the scene
         return random.choice(["indoor", "outdoor", "urban", "rural"])
 
-    def process_image(self, image: Any) -> Dict[str, Any]:
-        pose = self.estimate_pose(image)
-        people = self.detect_people(image)
-        scene_type = self.classify_scene(image)
+    def process_image(self) -> Dict[str, Any]:
+        pose = self.estimate_pose()
+        people = self.detect_people()
+        scene_type = self.classify_scene()
 
         return {
             "pose": pose,

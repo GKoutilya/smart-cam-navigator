@@ -1,6 +1,5 @@
 from typing import List, Tuple, Any
 from src.perception.visual_scene_understanding import VisualSceneUnderstanding
-from src.utils.helpers import visualize_path_from_csv
 from typing import Callable, Optional
 import matplotlib.pyplot as plt
 from datetime import datetime
