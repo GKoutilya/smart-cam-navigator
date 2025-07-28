@@ -1,9 +1,11 @@
 from typing import List, Tuple, Any
 from src.perception.visual_scene_understanding import VisualSceneUnderstanding
+from src.planning.camera_path_planning import CameraPathPlanner
 from typing import Callable, Optional
 import matplotlib.pyplot as plt
 from datetime import datetime
 import pandas as pd
+import math
 import time
 import cv2
 import csv
@@ -51,7 +53,7 @@ class RobotController:
                 self.move_to(position)
                 self.log_movement(position)
                 image = self.vision.capture_image()
-                scene_info = self.vision.process_image(image)
+                scene_info = self.vision.process_image()
                 self.image_captured.append({
                     "position": position,
                     "image": image,
@@ -64,6 +66,31 @@ class RobotController:
                 self.stop()
                 break
         return True
+    
+    def plan_and_act(self, planner: CameraPathPlanner, goals: List[Tuple[float, float]], num_points=20):
+        """
+            Plans a path using the given planner and executed it.
+
+            Args:
+                planner (CameraPathPlanner): An instance with a 'plan_path(start, goals)' method.
+                goals (List[Tuple[float, float]]): List of goal coordinates to reach.
+                num_points(int): Number of points for each path segment
+        """
+        start = self.current_position
+        if not goals:
+            print("No goals provided.")
+            return False
+        
+        print(f"Planning path from {start} to {goals}")
+        path = planner.plan_path(start=start, goals=goals, num_points=num_points)
+
+        if not path or len(path) < 2:
+            print("Failed to generate a valid path.")
+            return False
+        
+        print(f"Executing path with {len(path)} steps...")
+        success = self.execute_path(path)
+        return success
 
     def stop(self):
         # Code to stop the robot's movement

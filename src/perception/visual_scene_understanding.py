@@ -2,6 +2,7 @@ from  ultralytics import YOLO
 import cv2
 import numpy as np
 import random
+import torch
 from typing import Any, Dict
 
 class VisualSceneUnderstanding:
@@ -46,8 +47,22 @@ class VisualSceneUnderstanding:
         }
 
     def classify_scene(self) -> str:
-        # Returns a simple tag of the scene
-        return random.choice(["indoor", "outdoor", "urban", "rural"])
+        """Returns a simple tag of the scene"""
+        image = self.camera.capture()
+        results = self.detection_model(image, verbose=False)[0]
+        labels = [self.detection_model.model.names[int(cls)] for cls in results.boxes.cls.cpu().numpy()]
+        label_set = set(labels)
+
+        if any(obj in label_set for obj in ["oven", "sink", "couch"]):
+            return "indoor"
+        elif any(obj in label_set for obj in ["car", "bus", "traffic light"]):
+            return "urban"
+        elif any(obj in label_set for obj in ["tree", "grass", "dog"]):
+            return "outdoor"
+        elif any(obj in label_set for obj in ["cow", "sheep", "field"]):
+            return "rural"
+        else:
+            return "unknown"
 
     def process_image(self) -> Dict[str, Any]:
         pose = self.estimate_pose()
@@ -56,6 +71,35 @@ class VisualSceneUnderstanding:
 
         return {
             "pose": pose,
-            "people": people,
+            "people": people["detections"],
+            "num_people": people["num_people"],
             "scene_type": scene_type
         }
+    
+    def process_image_pose_only(self):
+        image = self.camera.capture()
+        if image is None:
+            return {"pose": {"x": 0, "y": 0, "theta": 0.0}}  # fail-safe
+        pose = self.estimate_pose(image)
+        return {"pose": pose}
+    
+    def infer_goals(self, scene_type: str, image_width, image_height) -> list[tuple[int, int]]:
+        results = self.detection_model(self.camera.capture(), verbose=False)[0]
+        boxes = results.boxes
+        class_ids = boxes.cls.cpu().numpy()
+        names = self.detection_model.model.names
+
+        goals = []
+
+        for i, cls_id in enumerate(class_ids):
+            label = names[int(cls_id)]
+            if label in ["door", "chair", "sofa"]:
+                box = boxes.xyxy[i].cpu().numpy()
+                x_center = int((box[0] + box[2]) / 2)
+                y_center = int((box[1] + box[3]) / 2)
+                goals.append((x_center, y_center))
+
+        if not goals:
+            goals = [(image_width // 2, image_height // 2)]
+
+        return goals
