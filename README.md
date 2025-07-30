@@ -51,16 +51,6 @@ Each module is fully decoupled and interchangeable — ideal for future upgrades
 
 <br/>
 
-## 🖥️ Demo
-
-| Live Webcam Feed                | Overlay with Pose + Path             |
-| ------------------------------- | ------------------------------------ |
-| ![camera](assets/frame_raw.jpg) | ![overlay](assets/frame_overlay.jpg) |
-
-> ☑️ Try with different scenes: a hallway, a cluttered room, or a person walking into frame.
-
-<br/>
-
 ## 🚀 How to Run
 
 ```bash
@@ -69,7 +59,7 @@ cd perception-to-action
 pip install -r requirements.txt
 
 # Launch live demo
-python main.py
+python main_pipeline.py
 ```
 
 > Requires: Python 3.10+, OpenCV, Ultralytics YOLOv8, Matplotlib, NumPy
@@ -81,7 +71,7 @@ python main.py
 * ✅ Real robot integration (e.g., Jetson Nano + motors)
 * ✅ Add motion smoothing and map memory
 * ⬜️ ROS2 interface
-* ⬜️ LLM-based mission summaries (currently explored in [Project #5](https://github.com/yourusername/kitti-fusion-gpt))
+* ⬜️ LLM-based mission summaries (currently explored in [Project #5](https://github.com/GKoutilya/kitti-multisensor-perception-pipeline))
 
 <br/>
 
@@ -100,7 +90,7 @@ This project demonstrates my ability to:
 ## 📬 Contact
 
 **Koutilya Ganapathiraju**
-Machine Learning Engineer – Robotics
-Email: [gkoutilyaraju@gmail.com](mailto:gkoutilyaraju@gmail.com)
-GitHub: [GitHub](https://github.com/GKoutilya)
-LinkedIn: [LinkedIn](https://www.linkedin.com/in/koutilya-ganapathiraju-0a3350182/)
+* Machine Learning Engineer – Robotics
+* Email: [gkoutilyaraju@gmail.com](mailto:gkoutilyaraju@gmail.com)
+* GitHub: [GitHub](https://github.com/GKoutilya)
+* LinkedIn: [LinkedIn](https://www.linkedin.com/in/koutilya-ganapathiraju-0a3350182/)
