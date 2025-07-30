@@ -2,8 +2,6 @@
 
 This project demonstrates a modular, real-time perception → planning → control pipeline designed for indoor robotic navigation using live webcam input. The system detects objects, infers scene context, estimates agent pose, plans dynamically updated paths, and simulates movement toward semantic goals — all with visual feedback and logging.
 
-<br/>
-
 ## 🎯 Key Features
 
 | Module | Description |
