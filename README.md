@@ -2,6 +2,7 @@
 
 This project demonstrates a modular, real-time perception → planning → control pipeline designed for indoor robotic navigation using live webcam input. The system detects objects, infers scene context, estimates agent pose, plans dynamically updated paths, and simulates movement toward semantic goals — all with visual feedback and logging.
 
+
 ## 🎯 Key Features
 
 | Module | Description |
@@ -11,9 +12,9 @@ This project demonstrates a modular, real-time perception → planning → contr
 | 🧠 **Goal Inference** | Automatically chooses a semantic goal (e.g., exit, door, person) based on scene type |
 | 🗺️ **Path Planning** | Plans shortest 2D path to the inferred goal using graph search or heuristic planning |
 | 🔁 **Replanning** | Path updates every 1–2 seconds using background thread for scene analysis |
-| 📹 **Camera Loop** | Live webcam input, stable frame rate (~3–4 FPS), play/pause support |
+| 📹 **Camera Loop** | Live webcam input, stable frame rate (~3–4 FPS) |
 | 🟢 **Live Visualization** | Realtime overlay of pose, path, and goal on the camera feed (green = agent, red = path) |
-| 📊 **Logging** | Logs scene type, detected objects, pose, and goal coordinates to CSV for review |
+| 📊 **Logging** | Logs timestamp and coordinates to CSV for review |
 
 <br/>
 
@@ -52,7 +53,7 @@ Each module is fully decoupled and interchangeable — ideal for future upgrades
 ## 🚀 How to Run
 
 ```bash
-git clone https://github.com/yourusername/perception-to-action
+git clone https://github.com/GKoutilya/smart-cam-navigator
 cd perception-to-action
 pip install -r requirements.txt
 
