@@ -3,18 +3,19 @@
 This project demonstrates a modular, real-time perception → planning → control pipeline designed for indoor robotic navigation using live webcam input. The system detects objects, infers scene context, estimates agent pose, plans dynamically updated paths, and simulates movement toward semantic goals — all with visual feedback and logging.
 
 
+
 ## 🎯 Key Features
 
 | Module | Description |
 |--------|-------------|
 | 🔍 **Perception** | YOLOv8 for object/person detection and custom scene type classification |
 | 📍 **Pose Estimation** | Estimates agent (camera) position using detections as landmarks |
-| 🧠 **Goal Inference** | Automatically chooses a semantic goal (e.g., exit, door, person) based on scene type |
-| 🗺️ **Path Planning** | Plans shortest 2D path to the inferred goal using graph search or heuristic planning |
-| 🔁 **Replanning** | Path updates every 1–2 seconds using background thread for scene analysis |
-| 📹 **Camera Loop** | Live webcam input, stable frame rate (~3–4 FPS) |
-| 🟢 **Live Visualization** | Realtime overlay of pose, path, and goal on the camera feed (green = agent, red = path) |
-| 📊 **Logging** | Logs timestamp and coordinates to CSV for review |
+| 🧠 **Goal Inference** | Automatically selects a semantic goal (e.g., exit, door, person) based on scene type |
+| 🗺️ **Path Planning** | Plans shortest 2D path to the goal using graph search or heuristics |
+| 🔁 **Dynamic Replanning** | Periodically reprocesses frames for updated plans |
+| 📹 **Camera Loop** | Live webcam input at ~3–4 FPS |
+| 🟢 **Live Visualization** | Real-time overlay of pose, goal, and path (green = agent, red = path) |
+| 📊 **Logging** | Logs timestamped pose and path coordinates to CSV |
 
 <br/>
 
@@ -65,9 +66,19 @@ python main_pipeline.py
 
 <br/>
 
+## ⚙️ Tech Stack
+
+- **Language**: Python 3.10
+- **Vision**: OpenCV, Ultralytics YOLOv8
+- **Planning**: A\*, custom heuristic search
+- **Visualization**: Matplotlib
+- **Utils**: NumPy, CSV logging, threading
+
+<br/>
+
 ## 💡 Future Extensions
 
-* ✅ Real robot integration (e.g., Jetson Nano + motors)
+* ✅ Real robot deployment (e.g., Jetson Nano + differential drive platform)
 * ✅ Add motion smoothing and map memory
 * ⬜️ ROS2 interface
 * ⬜️ LLM-based mission summaries (currently explored in [Project #5](https://github.com/GKoutilya/kitti-multisensor-perception-pipeline))
