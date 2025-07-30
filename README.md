@@ -1,64 +1,106 @@
-# 🔍 Visual Scene Understanding and Robot Path Planning Pipeline
+# 🧠 Real-Time Perception-to-Action Pipeline for Robotic Navigation
 
-This project simulates an end-to-end robotics perception and control pipeline. It processes synthetic camera inputs, detects obstacles, builds a scene representation, plans a path to a goal, and issues movement commands — all without real hardware or external models.
+This project demonstrates a modular, real-time perception → planning → control pipeline designed for indoor robotic navigation using live webcam input. The system detects objects, infers scene context, estimates agent pose, plans dynamically updated paths, and simulates movement toward semantic goals — all with visual feedback and logging.
 
-## 🚀 Features
+<br/>
 
-- **Camera Simulation**: Simulated environment frames for perception testing.
-- **Visual Scene Understanding**: Parses object detections to build semantic maps.
-- **Path Planning**: Generates a path around obstacles using simple grid-based logic.
-- **Robot Control**: Issues directional commands based on planned waypoints.
-- **Modular Design**: Each stage is built independently for testing, debugging, and potential extension.
+## 🎯 Key Features
 
-## 🧠 Pipeline Overview
+| Module | Description |
+|--------|-------------|
+| 🔍 **Perception** | YOLOv8 for object/person detection and custom scene type classification |
+| 📍 **Pose Estimation** | Estimates agent (camera) position using detections as landmarks |
+| 🧠 **Goal Inference** | Automatically chooses a semantic goal (e.g., exit, door, person) based on scene type |
+| 🗺️ **Path Planning** | Plans shortest 2D path to the inferred goal using graph search or heuristic planning |
+| 🔁 **Replanning** | Path updates every 1–2 seconds using background thread for scene analysis |
+| 📹 **Camera Loop** | Live webcam input, stable frame rate (~3–4 FPS), play/pause support |
+| 🟢 **Live Visualization** | Realtime overlay of pose, path, and goal on the camera feed (green = agent, red = path) |
+| 📊 **Logging** | Logs scene type, detected objects, pose, and goal coordinates to CSV for review |
+
+<br/>
+
+## 🧩 Modular Architecture
 
 ```text
-[Simulated Camera Frame]
-          ↓
-[Object Detection Model]
-          ↓
-[Visual Scene Understanding]
-          ↓
-[Path Planner]
-          ↓
-[Robot Controller]
+┌────────────┐
+│  Webcam    │
+└─────┬──────┘
+      ↓
+┌────────────┐
+│ Perception │──┐  Detect objects, classify scene
+└─────┬──────┘  │
+      ↓         │
+┌────────────┐  │
+│  Pose Est. │◄─┘
+└─────┬──────┘
+      ↓
+┌────────────┐
+│ Goal Infer │   Choose semantic goal (e.g., person, door)
+└─────┬──────┘
+      ↓
+┌────────────┐
+│ Path Plan  │   Replans every 1–2s if needed
+└─────┬──────┘
+      ↓
+┌────────────┐
+│  Visualize │   Draw pose, goal, and path on live feed
+└────────────┘
 ````
 
-> If you don’t have `camera_simulator.py` or `dummy_detection_model.py`, remove or replace their usage in `main_pipeline.py`.
+Each module is fully decoupled and interchangeable — ideal for future upgrades (e.g., replacing YOLO with a transformer-based detector, or plugging into ROS2).
 
-## ⚙️ Getting Started
+<br/>
 
-1. **Install requirements** (if any):
+## 🖥️ Demo
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+| Live Webcam Feed                | Overlay with Pose + Path             |
+| ------------------------------- | ------------------------------------ |
+| ![camera](assets/frame_raw.jpg) | ![overlay](assets/frame_overlay.jpg) |
 
-2. **Run the pipeline**:
+> ☑️ Try with different scenes: a hallway, a cluttered room, or a person walking into frame.
 
-   ```bash
-   python main_pipeline.py
-   ```
+<br/>
 
-3. **Run unit tests**:
+## 🚀 How to Run
 
-   ```bash
-   python test_visual_scene_understanding.py
-   ```
+```bash
+git clone https://github.com/yourusername/perception-to-action
+cd perception-to-action
+pip install -r requirements.txt
 
-## 🧪 Current Limitations
+# Launch live demo
+python main.py
+```
 
-* No real-time camera input (all synthetic or mocked).
-* Object detection model is simulated — no YOLO, OpenCV, etc.
-* Path planner uses a simple greedy grid-based algorithm.
+> Requires: Python 3.10+, OpenCV, Ultralytics YOLOv8, Matplotlib, NumPy
 
-## 🛠️ Next Steps
+<br/>
 
-* Integrate a real object detection model (e.g., YOLOv5).
-* Add real sensor inputs or simulation integration (e.g., Gazebo).
-* Enhance the planner with A\*, RRT, or D\*.
-* Add logging, metrics, or a visualization UI.
+## 💡 Future Extensions
 
-## 👤 Author
+* ✅ Real robot integration (e.g., Jetson Nano + motors)
+* ✅ Add motion smoothing and map memory
+* ⬜️ ROS2 interface
+* ⬜️ LLM-based mission summaries (currently explored in [Project #5](https://github.com/yourusername/kitti-fusion-gpt))
 
-Koutilya Ganapathiraju
+<br/>
+
+## 🧠 Why This Matters
+
+This project demonstrates my ability to:
+
+* Build **real-time robotics pipelines** from scratch
+* Combine **vision + planning + control**
+* Design modular, **debuggable** and **extensible systems**
+* Prioritize **frame rate and responsiveness**, not just ML accuracy
+* Think like a **robotics software engineer**, not just an ML researcher
+
+---
+
+## 📬 Contact
+
+**Koutilya Ganapathiraju**
+Machine Learning Engineer – Robotics
+Email: [gkoutilyaraju@gmail.com](mailto:gkoutilyaraju@gmail.com)
+GitHub: [GitHub](https://github.com/GKoutilya)
+LinkedIn: [LinkedIn](https://www.linkedin.com/in/koutilya-ganapathiraju-0a3350182/)
