@@ -68,7 +68,7 @@ python main_pipeline.py
 
 ## ⚙️ Tech Stack
 
-- **Language**: Python 3.10
+- **Language**: Python 3.11
 - **Vision**: OpenCV, Ultralytics YOLOv8
 - **Planning**: A\*, custom heuristic search
 - **Visualization**: Matplotlib
