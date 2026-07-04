@@ -1,9 +1,5 @@
-from  ultralytics import YOLO
-import cv2
-import numpy as np
-import random
-import torch
-from typing import Any, Dict
+from ultralytics import YOLO
+from typing import Any, Dict, List, Tuple
 
 class VisualSceneUnderstanding:
     def __init__(self, detection_model, camera, pose_model=None, scene_classifier=None):
@@ -15,20 +11,17 @@ class VisualSceneUnderstanding:
             self.detection_model = detection_model
         self.scene_classifier = scene_classifier
 
-    def estimate_pose(self) -> Dict[str, float]:
-        return {"x": 150, "y": 200, "theta": 0.5}
-    
     def capture_image(self):
         return self.camera.capture()
 
-    def detect_people(self, conf_threshold=0.5) -> Dict[str, Any]:
-        # Convert image if it's a NumPy array (BGR) or assume it's a filepath
-        image = self.camera.capture()
+    def _run_detection(self, image):
+        return self.detection_model(image, verbose=False)[0]
 
-        if isinstance(image, str):
-            image = cv2.imread(image)
-
-        results = self.detection_model(image)[0] # YOLO returns a list, we want the first result
+    def detect_people(self, image=None, results=None, conf_threshold=0.5) -> Dict[str, Any]:
+        if results is None:
+            if image is None:
+                image = self.camera.capture()
+            results = self._run_detection(image)
 
         people = []
         for box in results.boxes:
@@ -38,7 +31,7 @@ class VisualSceneUnderstanding:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 people.append({
                     "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                    "confidence": round(float(box.conf[0]), 2)
+                    "confidence": round(conf, 2)
                 })
 
         return {
@@ -46,10 +39,13 @@ class VisualSceneUnderstanding:
             "num_people": len(people)
         }
 
-    def classify_scene(self) -> str:
+    def classify_scene(self, image=None, results=None) -> str:
         """Returns a simple tag of the scene"""
-        image = self.camera.capture()
-        results = self.detection_model(image, verbose=False)[0]
+        if results is None:
+            if image is None:
+                image = self.camera.capture()
+            results = self._run_detection(image)
+
         labels = [self.detection_model.model.names[int(cls)] for cls in results.boxes.cls.cpu().numpy()]
         label_set = set(labels)
 
@@ -64,33 +60,17 @@ class VisualSceneUnderstanding:
         else:
             return "unknown"
 
-    def process_image(self) -> Dict[str, Any]:
-        pose = self.estimate_pose()
-        people = self.detect_people()
-        scene_type = self.classify_scene()
+    def infer_goals(self, image_width, image_height, image=None, results=None) -> List[Tuple[int, int]]:
+        if results is None:
+            if image is None:
+                image = self.camera.capture()
+            results = self._run_detection(image)
 
-        return {
-            "pose": pose,
-            "people": people["detections"],
-            "num_people": people["num_people"],
-            "scene_type": scene_type
-        }
-    
-    def process_image_pose_only(self):
-        image = self.camera.capture()
-        if image is None:
-            return {"pose": {"x": 0, "y": 0, "theta": 0.0}}  # fail-safe
-        pose = self.estimate_pose(image)
-        return {"pose": pose}
-    
-    def infer_goals(self, scene_type: str, image_width, image_height) -> list[tuple[int, int]]:
-        results = self.detection_model(self.camera.capture(), verbose=False)[0]
         boxes = results.boxes
         class_ids = boxes.cls.cpu().numpy()
         names = self.detection_model.model.names
 
         goals = []
-
         for i, cls_id in enumerate(class_ids):
             label = names[int(cls_id)]
             if label in ["door", "chair", "sofa"]:
@@ -103,3 +83,21 @@ class VisualSceneUnderstanding:
             goals = [(image_width // 2, image_height // 2)]
 
         return goals
+
+    def process_image(self, image=None) -> Dict[str, Any]:
+        if image is None:
+            image = self.camera.capture()
+
+        height, width = image.shape[:2]
+        results = self._run_detection(image)
+        people = self.detect_people(results=results)
+        scene_type = self.classify_scene(results=results)
+        goals = self.infer_goals(width, height, results=results)
+
+        return {
+            "image": image,
+            "people": people["detections"],
+            "num_people": people["num_people"],
+            "scene_type": scene_type,
+            "goals": goals,
+        }

@@ -1,13 +1,9 @@
-from typing import List, Tuple, Any
+from typing import List, Tuple
 from src.perception.visual_scene_understanding import VisualSceneUnderstanding
 from src.planning.camera_path_planning import CameraPathPlanner
 from typing import Callable, Optional
-import matplotlib.pyplot as plt
 from datetime import datetime
-import pandas as pd
-import math
 import time
-import cv2
 import csv
 import os
 
@@ -42,9 +38,6 @@ class RobotController:
             writer = csv.writer(f)
             writer.writerow([datetime.now().isoformat(), position[0], position[1]])
             f.flush()
-
-    def capture_image(self) -> Any:
-        return cv2.imread("sample_image.jpg")
 
     def execute_path(self, path: List[Tuple[float, float]]):
         self.image_captured.clear()

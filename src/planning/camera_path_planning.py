@@ -7,23 +7,6 @@ class CameraPathPlanner:
         self.image_height = image_height
         self.optimizer = PathOptimizer()
 
-    def extract_targets(self, person_boxes):
-        """
-            Extracts central points (targets) from person bounding boxes.
-            Args:
-                person_boxes: list of [x1, y1, x2, y2] bounding boxes.
-            Returns:
-                list of (x, y) positions normalized between 0-1.
-        """
-        targets = []
-
-        for box in person_boxes:
-            x_center = (((box[0] + box[2])) / 2) / self.image_width
-            y_center = (((box[1] + box[3])) / 2) / self.image_height
-            targets.append((x_center, y_center))
-
-        return targets
-
     def plan_path(self, start, goals, num_points=20):
         """
             Plans a path from start through multiple goals.
