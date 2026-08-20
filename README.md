@@ -55,8 +55,12 @@ Each module is fully decoupled and interchangeable — ideal for future upgrades
 
 ```bash
 git clone https://github.com/GKoutilya/smart-cam-navigator
-cd perception-to-action
+cd smart-cam-navigator
 pip install -r requirements.txt
+
+# One-time ground-plane calibration (mark a rectangle on the floor,
+# click its 4 corners in the webcam feed)
+python scripts/calibrate_ground_plane.py
 
 # Launch live demo
 python main_pipeline.py

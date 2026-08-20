@@ -4,7 +4,7 @@ from src.planning.camera_path_planning import CameraPathPlanner
 class TestCameraPathPlanner(unittest.TestCase):
 
     def setUp(self):
-        self.planner = CameraPathPlanner(image_width=1920, image_height=1080)
+        self.planner = CameraPathPlanner()
 
     def test_plan_path(self):
         start = (0, 0)

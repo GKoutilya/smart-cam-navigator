@@ -2,9 +2,7 @@ import numpy as np
 from src.planning.path_optimizer import PathOptimizer
 
 class CameraPathPlanner:
-    def __init__(self, image_width, image_height):
-        self.image_width = image_width
-        self.image_height = image_height
+    def __init__(self):
         self.optimizer = PathOptimizer()
 
     def plan_path(self, start, goals, num_points=20):

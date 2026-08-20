@@ -4,10 +4,14 @@ from src.planning.path_optimizer import PathOptimizer
 from src.action.robot_controller import RobotController
 from src.utils.helpers import visualize_path_from_csv
 from src.perception.camera import WebcamCamera
+from src.perception.ground_plane import GroundPlaneMapper
 from ultralytics import YOLO
 import numpy as np
 import time
 import cv2
+import os
+
+CALIBRATION_PATH = os.path.join("calibration", "homography.npy")
 
 def get_robot_pose_from_person(people):
     if not people:
@@ -19,6 +23,13 @@ def get_robot_pose_from_person(people):
     return {"x": center_x, "y": center_y, "theta": 0.0}
 
 def main():
+    if not os.path.exists(CALIBRATION_PATH):
+        raise FileNotFoundError(
+            f"No ground-plane calibration found at '{CALIBRATION_PATH}'. "
+            "Run `python scripts/calibrate_ground_plane.py` first."
+        )
+    mapper = GroundPlaneMapper.from_file(CALIBRATION_PATH)
+
     camera = WebcamCamera(cam_index=0)
     detection_model = YOLO("yolov8n.pt")
     scene_understanding = VisualSceneUnderstanding(detection_model=detection_model, camera=camera)
@@ -27,16 +38,15 @@ def main():
     if image is None:
         raise ValueError("Failed to load image from camera.")
 
-    height, width = image.shape[:2]
-    path_planner = CameraPathPlanner(width, height)
+    path_planner = CameraPathPlanner()
     path_optimizer = PathOptimizer()
     controller = RobotController(vision=scene_understanding)
 
     execution_index = 0
-    current_path = []
+    current_path = []  # world-space (ground-plane) coordinates
     REPLAN_INTERVAL_SEC = 1.5
     last_replan_time = time.time()
-    goals = []
+    pixel_goals = []  # kept in pixel space, only used for drawing
 
     prev_time = time.time()
 
@@ -51,19 +61,21 @@ def main():
         people = semantic_info["people"]
         scene_type = semantic_info["scene_type"]
 
-        pose = get_robot_pose_from_person(people)
-        if pose is None:
+        pixel_pose = get_robot_pose_from_person(people)
+        if pixel_pose is None:
             print("No person detected; skipping frame.")
             continue
 
-        controller.current_position = (pose['x'], pose['y'])
+        world_pose = mapper.pixel_to_world(pixel_pose['x'], pixel_pose['y'])
+        controller.current_position = world_pose
         current_time = time.time()
 
         # Replan only at interval or if no path
         if current_time - last_replan_time >= REPLAN_INTERVAL_SEC or not current_path:
-            goals = semantic_info["goals"]
-            if goals:
-                raw_path = path_planner.plan_path(start=controller.current_position, goals=goals)
+            pixel_goals = semantic_info["goals"]
+            if pixel_goals:
+                world_goals = [mapper.pixel_to_world(gx, gy) for gx, gy in pixel_goals]
+                raw_path = path_planner.plan_path(start=controller.current_position, goals=world_goals)
                 raw_path = [(float(x), float(y)) for x, y in raw_path]
                 current_path = path_optimizer.optimize_path(raw_path)
                 execution_index = 0  # Reset to start new path
@@ -86,14 +98,15 @@ def main():
             cv2.putText(annotated, f"person {conf:.2f}", (int(x1), int(y1)-10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        cv2.circle(annotated, (pose['x'], pose['y']), 10, (0, 255, 0), -1)
+        cv2.circle(annotated, (pixel_pose['x'], pixel_pose['y']), 10, (0, 255, 0), -1)
 
-        for goal in goals:
+        for goal in pixel_goals:
             cv2.circle(annotated, (int(goal[0]), int(goal[1])), 8, (255, 0, 0), -1)
 
         if current_path and len(current_path) > execution_index:
             remaining_pts = current_path[execution_index:]
-            pts = [(int(x), int(y)) for x, y in remaining_pts]
+            pixel_pts = [mapper.world_to_pixel(x, y) for x, y in remaining_pts]
+            pts = [(int(x), int(y)) for x, y in pixel_pts]
             if len(pts) > 1:
                 cv2.polylines(annotated, [np.array(pts, dtype=np.int32)], False, (0, 0, 255), 2)
 
