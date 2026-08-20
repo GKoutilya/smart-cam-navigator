@@ -1,60 +1,105 @@
-import cv2
 import unittest
-from unittest.mock import Mock
-import pillow_heif
+from types import SimpleNamespace
+
 import numpy as np
-from PIL import Image
-from ultralytics import YOLO
+import torch
+
 from src.perception.visual_scene_understanding import VisualSceneUnderstanding
 
-heif_file = pillow_heif.read_heif(r"C:\Users\kouti\Downloads\IMG_4525.HEIC")
+# Minimal subset of COCO class names actually referenced by classify_scene/infer_goals.
+FAKE_NAMES = {0: "person", 1: "couch", 2: "car", 3: "dog", 4: "chair"}
 
-image_temp = Image.frombytes(
-    heif_file.mode, 
-    heif_file.size, 
-    heif_file.data
-)
 
-image = cv2.cvtColor(np.array(image_temp), cv2.COLOR_RGB2BGR)
+class FakeBoxes:
+    """Mimics the subset of ultralytics' Boxes API that VisualSceneUnderstanding relies on."""
+
+    def __init__(self, entries):
+        # entries: list of (class_id, confidence, [x1, y1, x2, y2])
+        self.cls = torch.tensor([e[0] for e in entries], dtype=torch.float32)
+        self.conf = torch.tensor([e[1] for e in entries], dtype=torch.float32)
+        self.xyxy = torch.tensor([e[2] for e in entries], dtype=torch.float32)
+
+    def __iter__(self):
+        for i in range(len(self.cls)):
+            yield SimpleNamespace(cls=self.cls[i:i + 1], conf=self.conf[i:i + 1], xyxy=self.xyxy[i:i + 1])
+
+    def __len__(self):
+        return len(self.cls)
+
+
+def fake_results(entries):
+    return SimpleNamespace(boxes=FakeBoxes(entries))
+
+
+class FakeDetectionModel:
+    """Stands in for a loaded YOLO model: callable (like YOLO(image)) plus the .names/.model.names lookups."""
+
+    def __init__(self, entries, names=FAKE_NAMES):
+        self.names = names
+        self.model = SimpleNamespace(names=names)
+        self._entries = entries
+
+    def __call__(self, image, verbose=False):
+        return [fake_results(self._entries)]
+
 
 class TestVisualSceneUnderstanding(unittest.TestCase):
-
     def setUp(self):
-        model = YOLO('yolov8n.pt')
-        self.understanding = VisualSceneUnderstanding(detection_model=model, camera=Mock())
+        self.understanding = VisualSceneUnderstanding(
+            detection_model=SimpleNamespace(names=FAKE_NAMES, model=SimpleNamespace(names=FAKE_NAMES)),
+            camera=None,
+        )
 
-    def test_pose_estimation(self):
-        pose = self.understanding.estimate_pose(image)
-        self.assertIsNotNone(pose)
-        self.assertEqual(len(pose), 3)  # Assuming pose is represented by 6 parameters (x, y, z, roll, pitch, yaw)
+    def test_detect_people_filters_by_label_and_confidence(self):
+        entries = [
+            (0, 0.9, [10, 10, 50, 50]),  # person, above threshold
+            (0, 0.3, [60, 60, 90, 90]),  # person, below threshold
+            (1, 0.9, [0, 0, 20, 20]),    # couch, not a person
+        ]
+        result = self.understanding.detect_people(results=fake_results(entries), conf_threshold=0.5)
 
-    def test_scene_classification(self):
-        scene_type = self.understanding.classify_scene(image)
-        self.assertIsNotNone(scene_type)
-        self.assertIn(scene_type, ['indoor', 'outdoor', 'urban', 'rural'])  # Example scene types
-    
-    def test_visualize_people_detection(self):
-        self.assertIsNotNone(image, "Test image not found or unable to load.")
+        self.assertEqual(result["num_people"], 1)
+        self.assertEqual(result["detections"][0]["bbox"], [10, 10, 50, 50])
 
-        results = self.understanding.process_image(image)
+    def test_classify_scene_indoor(self):
+        scene_type = self.understanding.classify_scene(results=fake_results([(1, 0.9, [0, 0, 20, 20])]))
+        self.assertEqual(scene_type, "indoor")
 
-        for person in results["people"]['detections']:
-            x1, y1, x2, y2 = person["bbox"]
-            confidence = person["confidence"]
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(
-                image,
-                f"Person: {confidence:.2f}",
-                (x1, y1 - 10),
-                cv2.FONT_HERSHEY_COMPLEX,
-                0.5,
-                (0, 255, 0),
-                2,
-            )
+    def test_classify_scene_urban(self):
+        scene_type = self.understanding.classify_scene(results=fake_results([(2, 0.9, [0, 0, 20, 20])]))
+        self.assertEqual(scene_type, "urban")
 
-        cv2.imshow("People Detection", image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+    def test_classify_scene_unknown_when_no_matching_labels(self):
+        scene_type = self.understanding.classify_scene(results=fake_results([(0, 0.9, [0, 0, 20, 20])]))
+        self.assertEqual(scene_type, "unknown")
+
+    def test_infer_goals_falls_back_to_image_center_when_no_goal_objects(self):
+        goals = self.understanding.infer_goals(
+            image_width=640, image_height=480, results=fake_results([(0, 0.9, [0, 0, 20, 20])])
+        )
+        self.assertEqual(goals, [(320, 240)])
+
+    def test_infer_goals_uses_goal_object_centers(self):
+        goals = self.understanding.infer_goals(
+            image_width=640, image_height=480, results=fake_results([(4, 0.9, [0, 0, 20, 20])])
+        )
+        self.assertEqual(goals, [(10, 10)])
+
+    def test_process_image_combines_people_scene_and_goals(self):
+        entries = [
+            (0, 0.9, [10, 10, 50, 50]),       # person
+            (1, 0.9, [60, 60, 90, 90]),       # couch -> indoor scene
+            (4, 0.9, [100, 100, 140, 140]),   # chair -> goal
+        ]
+        understanding = VisualSceneUnderstanding(detection_model=FakeDetectionModel(entries), camera=None)
+        image = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        result = understanding.process_image(image=image)
+
+        self.assertEqual(result["num_people"], 1)
+        self.assertEqual(result["scene_type"], "indoor")
+        self.assertEqual(result["goals"], [(120, 120)])
+
 
 if __name__ == '__main__':
     unittest.main()

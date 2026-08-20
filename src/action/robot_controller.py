@@ -46,7 +46,7 @@ class RobotController:
                 self.move_to(position)
                 self.log_movement(position)
                 image = self.vision.capture_image()
-                scene_info = self.vision.process_image()
+                scene_info = self.vision.process_image(image)
                 self.image_captured.append({
                     "position": position,
                     "image": image,
