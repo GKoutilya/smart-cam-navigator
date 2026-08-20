@@ -13,34 +13,38 @@ FAKE_NAMES = {0: "person", 1: "couch", 2: "car", 3: "dog", 4: "chair"}
 class FakeBoxes:
     """Mimics the subset of ultralytics' Boxes API that VisualSceneUnderstanding relies on."""
 
-    def __init__(self, entries):
+    def __init__(self, entries, track_ids=None):
         # entries: list of (class_id, confidence, [x1, y1, x2, y2])
+        # track_ids: list of ints, same length as entries, or None if tracking assigned no IDs
         self.cls = torch.tensor([e[0] for e in entries], dtype=torch.float32)
         self.conf = torch.tensor([e[1] for e in entries], dtype=torch.float32)
         self.xyxy = torch.tensor([e[2] for e in entries], dtype=torch.float32)
+        self.id = torch.tensor(track_ids, dtype=torch.float32) if track_ids is not None else None
 
     def __iter__(self):
         for i in range(len(self.cls)):
-            yield SimpleNamespace(cls=self.cls[i:i + 1], conf=self.conf[i:i + 1], xyxy=self.xyxy[i:i + 1])
+            box_id = self.id[i:i + 1] if self.id is not None else None
+            yield SimpleNamespace(cls=self.cls[i:i + 1], conf=self.conf[i:i + 1], xyxy=self.xyxy[i:i + 1], id=box_id)
 
     def __len__(self):
         return len(self.cls)
 
 
-def fake_results(entries):
-    return SimpleNamespace(boxes=FakeBoxes(entries))
+def fake_results(entries, track_ids=None):
+    return SimpleNamespace(boxes=FakeBoxes(entries, track_ids=track_ids))
 
 
 class FakeDetectionModel:
-    """Stands in for a loaded YOLO model: callable (like YOLO(image)) plus the .names/.model.names lookups."""
+    """Stands in for a loaded YOLO model: its .track() (like YOLO.track(image)) plus .names/.model.names lookups."""
 
-    def __init__(self, entries, names=FAKE_NAMES):
+    def __init__(self, entries, names=FAKE_NAMES, track_ids=None):
         self.names = names
         self.model = SimpleNamespace(names=names)
         self._entries = entries
+        self._track_ids = track_ids
 
-    def __call__(self, image, verbose=False):
-        return [fake_results(self._entries)]
+    def track(self, image, persist=True, verbose=False):
+        return [fake_results(self._entries, track_ids=self._track_ids)]
 
 
 class TestVisualSceneUnderstanding(unittest.TestCase):
@@ -60,6 +64,16 @@ class TestVisualSceneUnderstanding(unittest.TestCase):
 
         self.assertEqual(result["num_people"], 1)
         self.assertEqual(result["detections"][0]["bbox"], [10, 10, 50, 50])
+
+    def test_detect_people_includes_track_id(self):
+        entries = [(0, 0.9, [10, 10, 50, 50])]
+        result = self.understanding.detect_people(results=fake_results(entries, track_ids=[7]))
+        self.assertEqual(result["detections"][0]["track_id"], 7)
+
+    def test_detect_people_track_id_none_when_untracked(self):
+        entries = [(0, 0.9, [10, 10, 50, 50])]
+        result = self.understanding.detect_people(results=fake_results(entries))
+        self.assertIsNone(result["detections"][0]["track_id"])
 
     def test_classify_scene_indoor(self):
         scene_type = self.understanding.classify_scene(results=fake_results([(1, 0.9, [0, 0, 20, 20])]))

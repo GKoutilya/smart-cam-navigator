@@ -15,7 +15,7 @@ class VisualSceneUnderstanding:
         return self.camera.capture()
 
     def _run_detection(self, image):
-        return self.detection_model(image, verbose=False)[0]
+        return self.detection_model.track(image, persist=True, verbose=False)[0]
 
     def detect_people(self, image=None, results=None, conf_threshold=0.5) -> Dict[str, Any]:
         if results is None:
@@ -29,9 +29,11 @@ class VisualSceneUnderstanding:
             conf = float(box.conf[0])
             if self.detection_model.names[cls_id] == "person" and conf >= conf_threshold:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
+                track_id = int(box.id[0]) if box.id is not None else None
                 people.append({
                     "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                    "confidence": round(conf, 2)
+                    "confidence": round(conf, 2),
+                    "track_id": track_id
                 })
 
         return {

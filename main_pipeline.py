@@ -5,6 +5,7 @@ from src.action.robot_controller import RobotController
 from src.utils.helpers import visualize_path_from_csv
 from src.perception.camera import WebcamCamera
 from src.perception.ground_plane import GroundPlaneMapper
+from src.perception.target_tracker import TargetTracker
 from ultralytics import YOLO
 import numpy as np
 import time
@@ -13,10 +14,7 @@ import os
 
 CALIBRATION_PATH = os.path.join("calibration", "homography.npy")
 
-def get_robot_pose_from_person(people):
-    if not people:
-        return None
-    person = people[0]
+def pixel_pose_from_person(person):
     x1, y1, x2, y2 = person['bbox']
     center_x = int((x1 + x2) / 2)
     center_y = int((y1 + y2) / 2)
@@ -41,12 +39,14 @@ def main():
     path_planner = CameraPathPlanner()
     path_optimizer = PathOptimizer()
     controller = RobotController(vision=scene_understanding)
+    target_tracker = TargetTracker()
 
     execution_index = 0
     current_path = []  # world-space (ground-plane) coordinates
     REPLAN_INTERVAL_SEC = 1.5
     last_replan_time = time.time()
     pixel_goals = []  # kept in pixel space, only used for drawing
+    pixel_pose = None  # last known pixel-space pose of the tracked target
 
     prev_time = time.time()
 
@@ -61,25 +61,29 @@ def main():
         people = semantic_info["people"]
         scene_type = semantic_info["scene_type"]
 
-        pixel_pose = get_robot_pose_from_person(people)
-        if pixel_pose is None:
-            print("No person detected; skipping frame.")
-            continue
-
-        world_pose = mapper.pixel_to_world(pixel_pose['x'], pixel_pose['y'])
-        controller.current_position = world_pose
+        # Holds onto one tracked person across frames instead of re-picking
+        # people[0]; returns None both when nobody is around and during the
+        # tracker's grace period for a momentarily-missing target, so the
+        # loop below must keep running (path execution, display, quit-check)
+        # rather than skipping the frame entirely.
+        target = target_tracker.update(people)
         current_time = time.time()
 
-        # Replan only at interval or if no path
-        if current_time - last_replan_time >= REPLAN_INTERVAL_SEC or not current_path:
-            pixel_goals = semantic_info["goals"]
-            if pixel_goals:
-                world_goals = [mapper.pixel_to_world(gx, gy) for gx, gy in pixel_goals]
-                raw_path = path_planner.plan_path(start=controller.current_position, goals=world_goals)
-                raw_path = [(float(x), float(y)) for x, y in raw_path]
-                current_path = path_optimizer.optimize_path(raw_path)
-                execution_index = 0  # Reset to start new path
-            last_replan_time = current_time
+        if target is not None:
+            pixel_pose = pixel_pose_from_person(target)
+            world_pose = mapper.pixel_to_world(pixel_pose['x'], pixel_pose['y'])
+            controller.current_position = world_pose
+
+            # Replan only at interval or if no path
+            if current_time - last_replan_time >= REPLAN_INTERVAL_SEC or not current_path:
+                pixel_goals = semantic_info["goals"]
+                if pixel_goals:
+                    world_goals = [mapper.pixel_to_world(gx, gy) for gx, gy in pixel_goals]
+                    raw_path = path_planner.plan_path(start=controller.current_position, goals=world_goals)
+                    raw_path = [(float(x), float(y)) for x, y in raw_path]
+                    current_path = path_optimizer.optimize_path(raw_path)
+                    execution_index = 0  # Reset to start new path
+                last_replan_time = current_time
 
         # Execute one step of the path per frame
         if current_path and execution_index < len(current_path):
@@ -98,7 +102,8 @@ def main():
             cv2.putText(annotated, f"person {conf:.2f}", (int(x1), int(y1)-10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        cv2.circle(annotated, (pixel_pose['x'], pixel_pose['y']), 10, (0, 255, 0), -1)
+        if pixel_pose is not None:
+            cv2.circle(annotated, (pixel_pose['x'], pixel_pose['y']), 10, (0, 255, 0), -1)
 
         for goal in pixel_goals:
             cv2.circle(annotated, (int(goal[0]), int(goal[1])), 8, (255, 0, 0), -1)
