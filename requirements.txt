@@ -1,10 +1,10 @@
 numpy
-scikit-learn
 opencv-python
-tensorflow
 torch
+ultralytics
 matplotlib
 scipy
+pandas
+Pillow
+pillow-heif
 pytest
-robotics-toolbox-python
-ultralytics

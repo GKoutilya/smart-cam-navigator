@@ -1,21 +1,23 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='ml-perception-action-system',
+    name='smart-cam-navigator',
     version='0.1.0',
-    author='Your Name',
-    author_email='your.email@example.com',
+    author='Koutilya Ganapathiraju',
+    author_email='gkoutilyaraju@gmail.com',
     description='A machine learning system for autonomous visual scene understanding and camera path planning in human-centric robotics.',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     install_requires=[
         'numpy',
         'opencv-python',
-        'scikit-learn',
-        'tensorflow',  # or 'torch' depending on your ML framework
+        'torch',
+        'ultralytics',
         'matplotlib',
         'scipy',
         'pandas',
+        'Pillow',
+        'pillow-heif',
         'pytest',  # for testing
     ],
     classifiers=[

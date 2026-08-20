@@ -8,8 +8,8 @@ class TestCameraPathPlanner(unittest.TestCase):
 
     def test_plan_path(self):
         start = (0, 0)
-        goal = (10, 10)
-        path = self.planner.plan_path(start, goal)
+        goals = [(10, 10)]
+        path = self.planner.plan_path(start, goals)
         self.assertIsNotNone(path)
         self.assertGreater(len(path), 0)
 
