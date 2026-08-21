@@ -19,6 +19,26 @@ def interpolate_points(point1, point2, num_points):
         for t in range(num_points)
     ]
 
+def sample_timed_path(timed_path, t):
+    """Linearly interpolates a [(t, x, y), ...] path at time t, clamped to the path's ends."""
+    if not timed_path:
+        raise ValueError("timed_path must not be empty.")
+
+    if t <= timed_path[0][0]:
+        return (timed_path[0][1], timed_path[0][2])
+    if t >= timed_path[-1][0]:
+        return (timed_path[-1][1], timed_path[-1][2])
+
+    for (t0, x0, y0), (t1, x1, y1) in zip(timed_path, timed_path[1:]):
+        if t0 <= t <= t1:
+            if t1 == t0:
+                return (x1, y1)
+            ratio = (t - t0) / (t1 - t0)
+            return (x0 + (x1 - x0) * ratio, y0 + (y1 - y0) * ratio)
+
+    return (timed_path[-1][1], timed_path[-1][2])
+
+
 def visualize_path_from_csv(csv_path):
     """Load path from CSV and visualize it using matplotlib."""
     import matplotlib.pyplot as plt

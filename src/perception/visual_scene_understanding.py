@@ -1,6 +1,15 @@
 from ultralytics import YOLO
 from typing import Any, Dict, List, Tuple
 
+# Furniture-like COCO labels treated as planning obstacles. Deliberately excludes
+# "chair"/"sofa"/"door" (infer_goals' goal-trigger labels, so the active goal is
+# never also an obstacle blocking the path to it) and "person" (handled by
+# TargetTracker, not the costmap).
+OBSTACLE_LABELS = [
+    "couch", "potted plant", "bed", "dining table", "toilet",
+    "tv", "refrigerator", "backpack", "suitcase", "bench",
+]
+
 class VisualSceneUnderstanding:
     def __init__(self, detection_model, camera, pose_model=None, scene_classifier=None):
         self.camera = camera
@@ -86,6 +95,35 @@ class VisualSceneUnderstanding:
 
         return goals
 
+    def detect_obstacles(self, image=None, results=None) -> Dict[str, Any]:
+        if results is None:
+            if image is None:
+                image = self.camera.capture()
+            results = self._run_detection(image)
+
+        boxes = results.boxes
+        class_ids = boxes.cls.cpu().numpy()
+        names = self.detection_model.model.names
+
+        obstacles = []
+        for i, cls_id in enumerate(class_ids):
+            label = names[int(cls_id)]
+            if label in OBSTACLE_LABELS:
+                x1, y1, x2, y2 = boxes.xyxy[i].cpu().numpy()
+                # Bottom-center: the point where the object actually touches the
+                # floor, unlike the full-box center which sits above ground level.
+                footprint = (int((x1 + x2) / 2), int(y2))
+                obstacles.append({
+                    "label": label,
+                    "bbox": [int(x1), int(y1), int(x2), int(y2)],
+                    "pixel_footprint": footprint,
+                })
+
+        return {
+            "detections": obstacles,
+            "num_obstacles": len(obstacles),
+        }
+
     def process_image(self, image=None) -> Dict[str, Any]:
         if image is None:
             image = self.camera.capture()
@@ -95,6 +133,7 @@ class VisualSceneUnderstanding:
         people = self.detect_people(results=results)
         scene_type = self.classify_scene(results=results)
         goals = self.infer_goals(width, height, results=results)
+        obstacles = self.detect_obstacles(results=results)
 
         return {
             "image": image,
@@ -102,4 +141,5 @@ class VisualSceneUnderstanding:
             "num_people": people["num_people"],
             "scene_type": scene_type,
             "goals": goals,
+            "obstacles": obstacles["detections"],
         }

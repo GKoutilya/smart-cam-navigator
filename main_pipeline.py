@@ -2,10 +2,11 @@ from src.perception.visual_scene_understanding import VisualSceneUnderstanding
 from src.planning.camera_path_planning import CameraPathPlanner
 from src.planning.path_optimizer import PathOptimizer
 from src.action.robot_controller import RobotController
-from src.utils.helpers import visualize_path_from_csv
+from src.utils.helpers import visualize_path_from_csv, sample_timed_path
 from src.perception.camera import WebcamCamera
 from src.perception.ground_plane import GroundPlaneMapper
 from src.perception.target_tracker import TargetTracker
+from src.planning.costmap import Costmap
 from ultralytics import YOLO
 import numpy as np
 import time
@@ -41,8 +42,8 @@ def main():
     controller = RobotController(vision=scene_understanding)
     target_tracker = TargetTracker()
 
-    execution_index = 0
-    current_path = []  # world-space (ground-plane) coordinates
+    current_path = []  # [(t, x, y), ...] time-parameterized, world-space
+    path_start_time = None
     REPLAN_INTERVAL_SEC = 1.5
     last_replan_time = time.time()
     pixel_goals = []  # kept in pixel space, only used for drawing
@@ -79,19 +80,27 @@ def main():
                 pixel_goals = semantic_info["goals"]
                 if pixel_goals:
                     world_goals = [mapper.pixel_to_world(gx, gy) for gx, gy in pixel_goals]
+
+                    costmap = Costmap()
+                    for obstacle in semantic_info["obstacles"]:
+                        ox, oy = mapper.pixel_to_world(*obstacle["pixel_footprint"])
+                        costmap.add_obstacle(ox, oy)
+                    path_planner.set_costmap(costmap)
+
                     raw_path = path_planner.plan_path(start=controller.current_position, goals=world_goals)
                     raw_path = [(float(x), float(y)) for x, y in raw_path]
                     current_path = path_optimizer.optimize_path(raw_path)
-                    execution_index = 0  # Reset to start new path
+                    path_start_time = current_time
                 last_replan_time = current_time
 
-        # Execute one step of the path per frame
-        if current_path and execution_index < len(current_path):
-            next_pos = current_path[execution_index]
+        # Follow the time-parameterized trajectory by elapsed time, not frame
+        # count, so it advances at a consistent real-world pace regardless of FPS.
+        elapsed = current_time - path_start_time if current_path else None
+        if current_path:
+            next_pos = sample_timed_path(current_path, elapsed)
             controller.move_to(next_pos)
             controller.log_movement(next_pos)
             controller.current_position = next_pos  # update after moving
-            execution_index += 1
 
         # Visualization: draw current_path, pose, goals, etc.
         annotated = image.copy()
@@ -108,8 +117,8 @@ def main():
         for goal in pixel_goals:
             cv2.circle(annotated, (int(goal[0]), int(goal[1])), 8, (255, 0, 0), -1)
 
-        if current_path and len(current_path) > execution_index:
-            remaining_pts = current_path[execution_index:]
+        if current_path:
+            remaining_pts = [(x, y) for t, x, y in current_path if t >= elapsed]
             pixel_pts = [mapper.world_to_pixel(x, y) for x, y in remaining_pts]
             pts = [(int(x), int(y)) for x, y in pixel_pts]
             if len(pts) > 1:

@@ -99,10 +99,27 @@ class TestVisualSceneUnderstanding(unittest.TestCase):
         )
         self.assertEqual(goals, [(10, 10)])
 
-    def test_process_image_combines_people_scene_and_goals(self):
+    def test_detect_obstacles_returns_curated_labels_only(self):
+        entries = [
+            (0, 0.9, [10, 10, 50, 50]),        # person - not an obstacle
+            (1, 0.9, [100, 100, 140, 160]),    # couch - obstacle
+            (4, 0.9, [200, 200, 240, 240]),    # chair - goal label, not an obstacle
+        ]
+        result = self.understanding.detect_obstacles(results=fake_results(entries))
+
+        self.assertEqual(result["num_obstacles"], 1)
+        self.assertEqual(result["detections"][0]["label"], "couch")
+
+    def test_detect_obstacles_uses_bbox_bottom_center_as_footprint(self):
+        entries = [(1, 0.9, [100, 100, 140, 160])]  # couch: x center 120, bottom edge y=160
+        result = self.understanding.detect_obstacles(results=fake_results(entries))
+
+        self.assertEqual(result["detections"][0]["pixel_footprint"], (120, 160))
+
+    def test_process_image_combines_people_scene_goals_and_obstacles(self):
         entries = [
             (0, 0.9, [10, 10, 50, 50]),       # person
-            (1, 0.9, [60, 60, 90, 90]),       # couch -> indoor scene
+            (1, 0.9, [60, 60, 90, 90]),       # couch -> indoor scene + obstacle
             (4, 0.9, [100, 100, 140, 140]),   # chair -> goal
         ]
         understanding = VisualSceneUnderstanding(detection_model=FakeDetectionModel(entries), camera=None)
@@ -113,6 +130,8 @@ class TestVisualSceneUnderstanding(unittest.TestCase):
         self.assertEqual(result["num_people"], 1)
         self.assertEqual(result["scene_type"], "indoor")
         self.assertEqual(result["goals"], [(120, 120)])
+        self.assertEqual(len(result["obstacles"]), 1)
+        self.assertEqual(result["obstacles"][0]["label"], "couch")
 
 
 if __name__ == '__main__':

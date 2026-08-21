@@ -1,57 +1,46 @@
 import math
+from typing import List, Tuple
+
 
 class PathOptimizer:
     def __init__(self):
         pass
 
-    def smooth_path(self, path, weight=0.5):
+    def time_parameterize(self, path: List[Tuple[float, float]],
+                           max_velocity: float = 0.5,
+                           max_acceleration: float = 0.5) -> List[Tuple[float, float, float]]:
         """
-            Smooths the path using averaging technique.
+            Time-parameterizes a path with a trapezoidal velocity profile
+            (triangular if the path is too short to reach max_velocity),
+            returning (t, x, y) waypoints that respect max_velocity/
+            max_acceleration by construction rather than checked after the fact.
         """
-        if len(path) < 3:
-            return path
+        if max_velocity <= 0 or max_acceleration <= 0:
+            raise ValueError("max_velocity and max_acceleration must be positive.")
+        if not path:
+            return []
 
-        smoothed_path = [path[0]]
-        for i in range(1, len(path) - 1):
-            prev_point = path[i-1]
-            curr_point = path[i]
-            next_point = path[i+1]
+        cumulative_distances = [0.0]
+        for (x0, y0), (x1, y1) in zip(path, path[1:]):
+            cumulative_distances.append(cumulative_distances[-1] + math.hypot(x1 - x0, y1 - y0))
+        total_distance = cumulative_distances[-1]
 
-            smoothed_x = (
-                weight * prev_point[0] +
-                (1 - 2 * weight) * curr_point[0] +
-                weight * next_point[0]
-            )
+        accel_distance = min(max_velocity ** 2 / (2 * max_acceleration), total_distance / 2)
+        peak_velocity = math.sqrt(2 * max_acceleration * accel_distance)
+        cruise_distance = max(total_distance - 2 * accel_distance, 0.0)
+        accel_time = peak_velocity / max_acceleration
+        cruise_time = cruise_distance / peak_velocity if peak_velocity > 0 else 0.0
+        total_time = 2 * accel_time + cruise_time
 
-            smoothed_y = (
-                weight * prev_point[1] +
-                (1 - 2 * weight) * curr_point[1] +
-                weight * next_point[1]
-            )
+        def time_at(distance):
+            if distance <= accel_distance:
+                return math.sqrt(2 * distance / max_acceleration)
+            if distance <= accel_distance + cruise_distance:
+                return accel_time + (distance - accel_distance) / peak_velocity
+            remaining = total_distance - distance
+            return total_time - math.sqrt(2 * remaining / max_acceleration)
 
-            smoothed_path.append((smoothed_x, smoothed_y))
-        
-        smoothed_path.append(path[-1])
+        return [(time_at(distance), x, y) for distance, (x, y) in zip(cumulative_distances, path)]
 
-        return smoothed_path
-
-    def ensure_feasibility(self, path, max_step_size=5.0):
-        """
-            Ensures no two consecutive points are too far apart.
-        """
-        for i in range(len(path) - 1):
-            dx = path[i+1][0] - path[i][0]
-            dy = path[i+1][1] - path[i][1]
-            dist = math.hypot(dx, dy)
-            if dist > max_step_size:
-                return False
-
-        return True
-    
-    def optimize_path(self, path, smoothing_method="average"):
-        if not self.ensure_feasibility(path, max_step_size=250.0):
-            raise ValueError("Path is not feasible for execution.")
-        if smoothing_method == "average":
-            return self.smooth_path(path)
-        
-        return path
+    def optimize_path(self, path, max_velocity: float = 0.5, max_acceleration: float = 0.5):
+        return self.time_parameterize(path, max_velocity=max_velocity, max_acceleration=max_acceleration)

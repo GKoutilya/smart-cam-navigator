@@ -60,22 +60,21 @@ class RobotController:
                 break
         return True
     
-    def plan_and_act(self, planner: CameraPathPlanner, goals: List[Tuple[float, float]], num_points=20):
+    def plan_and_act(self, planner: CameraPathPlanner, goals: List[Tuple[float, float]]):
         """
             Plans a path using the given planner and executed it.
 
             Args:
                 planner (CameraPathPlanner): An instance with a 'plan_path(start, goals)' method.
                 goals (List[Tuple[float, float]]): List of goal coordinates to reach.
-                num_points(int): Number of points for each path segment
         """
         start = self.current_position
         if not goals:
             print("No goals provided.")
             return False
-        
+
         print(f"Planning path from {start} to {goals}")
-        path = planner.plan_path(start=start, goals=goals, num_points=num_points)
+        path = planner.plan_path(start=start, goals=goals)
 
         if not path or len(path) < 2:
             print("Failed to generate a valid path.")
