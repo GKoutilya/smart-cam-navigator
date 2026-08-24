@@ -26,11 +26,15 @@ class RobotController:
         
         self.on_step = on_step
 
-    def move_to(self, position: Tuple[float, float]):
-        # Code to move the robot to the specified position
+    def move_to(self, position: Tuple[float, float], dt: float = 0.1):
         print(f"Moving to position {position}")
-        time.sleep(0.1)
-        self.current_position = position
+        if self.robot is not None:
+            self.robot.command_towards(position[0], position[1], dt)
+            self.robot.step(dt)
+            self.current_position = self.robot.get_position()
+        else:
+            time.sleep(0.1)
+            self.current_position = position
 
     def log_movement(self, position):
         print(f"Logging position: {position} to {self.log_path}")

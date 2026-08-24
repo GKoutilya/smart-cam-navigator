@@ -18,6 +18,7 @@ setup(
         'pandas',
         'Pillow',
         'pillow-heif',
+        'pymunk',
         'pytest',  # for testing
     ],
     classifiers=[

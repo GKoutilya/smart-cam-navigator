@@ -7,4 +7,5 @@ scipy
 pandas
 Pillow
 pillow-heif
+pymunk
 pytest
